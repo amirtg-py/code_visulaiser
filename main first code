@@ -1,0 +1,398 @@
+import ast
+
+print("starting process")
+
+def get_file_path_from_user():
+    """
+    دریافت مسیر فایل از کاربر.
+
+    خروجی:
+    - مسیر فایل انتخاب شده توسط کاربر
+    """
+    file_path = input("لطفاً مسیر فایل پایتون را وارد کنید: ")
+    return file_path
+
+def parse_python_code():
+    """
+    تجزیه فایل پایتون و ایجاد ساختار درختی کد.
+
+    خروجی:
+    - ساختار درختی کد (AST)
+    """
+    # دریافت مسیر فایل از کاربر
+    file_path = get_file_path_from_user()
+
+    # بررسی وجود فایل
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            print("فایل با موفقیت خوانده شد.")
+            code_content = file.read()
+    except FileNotFoundError:
+        print(f"فایلی در مسیر {file_path} یافت نشد!")
+        return None
+
+    # تجزیه متن و ایجاد ساختار درختی
+    try:
+        tree = ast.parse(code_content)
+        print("تجزیه فایل با موفقیت انجام شد.")
+        return tree
+    except Exception as e:
+        print(f"خطا در تجزیه فایل: {e}")
+        return None
+
+def identify_functions_in_code(tree):
+    """
+    شناسایی توابع موجود در کد پایتون با استفاده از ساختار درختی کد (AST).
+
+    ورودی:
+    - tree: ساختار درختی کد (AST)
+
+    خروجی:
+    - لیستی از توابع موجود در کد
+    """
+    # یک لیست برای ذخیره نام توابع
+    functions_list = []
+
+    # شناسایی تمام توابع در کد با استفاده از کتابخانه ast
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            functions_list.append(node.name)
+            print(f"تابع {node.name} شناسایی شد.")
+
+    # حذف تکراری‌ها از لیست
+    unique_functions = list(set(functions_list))
+    return unique_functions
+
+def display_identified_functions(functions_list):
+    """
+    نمایش توابع شناسایی شده.
+
+    ورودی:
+    - functions_list: لیستی از توابع موجود در کد
+    """
+    print("\nتوابع شناسایی شده در کد:")
+    for func in functions_list:
+        print(f"- {func}")
+
+
+def identify_called_functions_in_function(tree, function_name):
+    """
+    شناسایی توابعی که در یک تابع خاص فراخوانی شده‌اند.
+
+    ورودی:
+    - tree: ساختار درختی کد (AST)
+    - function_name: نام تابعی که می‌خواهیم توابع فراخوانی شده در آن را شناسایی کنیم
+
+    خروجی:
+    - لیستی از توابعی که در تابع مورد نظر فراخوانی شده‌اند
+    """
+
+    called_functions = []
+
+    # پیدا کردن تعریف تابع با نام مورد نظر در درخت
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+            # پیدا کردن تمام فراخوانی‌های تابع در تابع مورد نظر
+            for child in ast.walk(node):
+                if isinstance(child, ast.Call) and isinstance(child.func, ast.Name):
+                    called_functions.append(child.func.id)
+                    print(f"تابع {child.func.id} در تابع {function_name} فراخوانی شده‌است.")
+
+    return called_functions
+
+def identify_function_parameters(tree, function_name):
+    """
+    شناسایی پارامترهای ورودی یک تابع خاص.
+
+    ورودی:
+    - tree: ساختار درختی کد (AST)
+    - function_name: نام تابعی که می‌خواهیم پارامترهای ورودی آن را شناسایی کنیم
+
+    خروجی:
+    - لیستی از پارامترهای ورودی تابع مورد نظر
+    """
+
+    parameters = []
+
+    # پیدا کردن تعریف تابع با نام مورد نظر در درخت
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+            # ذخیره پارامترهای ورودی تابع
+            for arg in node.args.args:
+                parameters.append(arg.arg)
+                print(f"پارامتر {arg.arg} در تابع {function_name} شناسایی شد.")
+
+    return parameters
+def identify_local_variables_in_function(tree, function_name):
+    """
+    شناسایی متغیر‌های محلی درون یک تابع خاص.
+
+    ورودی:
+    - tree: ساختار درختی کد (AST)
+    - function_name: نام تابعی که می‌خواهیم متغیر‌های محلی آن را شناسایی کنیم
+
+    خروجی:
+    - لیستی از متغیر‌های محلی تابع مورد نظر
+    """
+
+    local_variables = []
+
+    # پیدا کردن تعریف تابع با نام مورد نظر در درخت
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+            # پیدا کردن تمام تخصیص‌های متغیر در تابع مورد نظر
+            for child in ast.walk(node):
+                if isinstance(child, ast.Assign):
+                    for target in child.targets:
+                        if isinstance(target, ast.Name):
+                            local_variables.append(target.id)
+                            print(f"متغیر محلی {target.id} در تابع {function_name} شناسایی شد.")
+
+    # حذف متغیر‌های تکراری
+    unique_local_variables = list(set(local_variables))
+
+    return unique_local_variables
+def identify_global_variables_used_in_function(tree, function_name):
+    """
+    شناسایی متغیر‌های گلوبال استفاده شده در یک تابع خاص.
+
+    ورودی:
+    - tree: ساختار درختی کد (AST)
+    - function_name: نام تابعی که می‌خواهیم متغیر‌های گلوبال استفاده شده در آن را شناسایی کنیم
+
+    خروجی:
+    - لیستی از متغیر‌های گلوبال استفاده شده در تابع مورد نظر
+    """
+
+    global_variables = []
+
+    # پیدا کردن تعریف تابع با نام مورد نظر در درخت
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+            # پیدا کردن استفاده از متغیر‌های گلوبال در تابع مورد نظر
+            for child in ast.walk(node):
+                if isinstance(child, ast.Global):
+                    for name in child.names:
+                        global_variables.append(name)
+                        print(f"متغیر گلوبال {name} در تابع {function_name} استفاده شده‌است.")
+
+    # حذف متغیر‌های تکراری
+    unique_global_variables = list(set(global_variables))
+
+    return unique_global_variables
+
+
+def identify_function_io_variables(tree, function_name):
+    """
+    شناسایی متغیر‌های ورودی و خروجی یک تابع خاص.
+
+    ورودی:
+    - tree: ساختار درختی کد (AST)
+    - function_name: نام تابعی که می‌خواهیم متغیر‌های ورودی و خروجی آن را شناسایی کنیم
+
+    خروجی:
+    - دو لیست از متغیر‌های ورودی و خروجی تابع مورد نظر
+    """
+
+    input_variables = []
+    output_variables = []
+
+    # پیدا کردن تعریف تابع با نام مورد نظر در درخت
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+
+            # شناسایی متغیر‌های ورودی (پارامتر‌های تابع)
+            for arg in node.args.args:
+                input_variables.append(arg.arg)
+                print(f"متغیر ورودی {arg.arg} در تابع {function_name} شناسایی شد.")
+
+            # شناسایی متغیر‌های خروجی (مقادیر بازگشتی تابع)
+            for child in ast.walk(node):
+                if isinstance(child, ast.Return):
+                    # فرض: مقادیر بازگشتی تابع یک متغیر یا یک لیترال است
+                    if isinstance(child.value, ast.Name):
+                        output_variables.append(child.value.id)
+                        print(f"متغیر خروجی {child.value.id} در تابع {function_name} شناسایی شد.")
+                    elif isinstance(child.value, ast.Constant):
+                        output_variables.append(str(child.value.value))
+                        print(f"مقدار ثابت خروجی {child.value.value} در تابع {function_name} شناسایی شد.")
+
+    return input_variables, output_variables
+
+
+def identify_classes_and_methods(tree):
+    """
+    شناسایی کلاس‌ها و متدهای موجود در کد پایتون با استفاده از ساختار درختی کد (AST).
+
+    ورودی:
+    - tree: ساختار درختی کد (AST)
+
+    خروجی:
+    - دیکشنری شامل کلاس‌ها به عنوان کلید و متدهای مرتبط با هر کلاس به عنوان مقدار
+    """
+
+    classes_and_methods = {}
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            class_name = node.name
+            methods = [n.name for n in ast.walk(node) if isinstance(n, ast.FunctionDef) and not n.name.startswith("__")]
+            classes_and_methods[class_name] = methods
+
+    return classes_and_methods
+
+def identify_class_attributes(tree, class_name):
+    """
+    شناسایی ویژگی‌های (متغیر‌های) یک کلاس خاص.
+
+    ورودی:
+    - tree: ساختار درختی کد (AST)
+    - class_name: نام کلاسی که می‌خواهیم ویژگی‌های آن را شناسایی کنیم
+
+    خروجی:
+    - لیستی از ویژگی‌های موجود در کلاس مورد نظر
+    """
+
+    attributes = []
+
+    # پیدا کردن تعریف کلاس با نام مورد نظر در درخت
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            # پیدا کردن تمام تخصیص‌های متغیر در کلاس مورد نظر
+            for child in ast.walk(node):
+                if isinstance(child, ast.Assign):
+                    for target in child.targets:
+                        if isinstance(target, ast.Name):
+                            attributes.append(target.id)
+                            print(f"ویژگی {target.id} در کلاس {class_name} شناسایی شد.")
+
+    return attributes
+def identify_class_methods(tree, class_name):
+    """
+    شناسایی متدهای موجود در یک کلاس خاص.
+
+    ورودی:
+    - tree: ساختار درختی کد (AST)
+    - class_name: نام کلاسی که می‌خواهیم متدهای آن را شناسایی کنیم
+
+    خروجی:
+    - لیستی از متدهای موجود در کلاس مورد نظر
+    """
+    methods_list = []
+
+    # پیدا کردن تعریف کلاس با نام مورد نظر در درخت
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            # شناسایی تمام توابع (متدها) در کلاس مورد نظر
+            for child in ast.walk(node):
+                if isinstance(child, ast.FunctionDef):
+                    methods_list.append(child.name)
+                    print(f"متد {child.name} در کلاس {class_name} شناسایی شد.")
+
+    return methods_list
+
+
+def identify_class_attributes(tree, class_name):
+    """
+    شناسایی ویژگی‌های یک کلاس خاص در کد پایتون.
+
+    ورودی:
+    - tree: ساختار درختی کد (AST)
+    - class_name: نام کلاسی که می‌خواهیم ویژگی‌های آن را شناسایی کنیم
+
+    خروجی:
+    - لیستی از ویژگی‌های شناسایی شده در کلاس
+    """
+
+    attributes = set()
+
+    # پیدا کردن تعریف کلاس با نام مورد نظر در درخت
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            for child in ast.walk(node):
+                # شناسایی متغیر‌هایی که با استفاده از `self` تعریف شده‌اند
+                if isinstance(child, ast.Assign):
+                    for target in child.targets:
+                        if isinstance(target, ast.Attribute) and target.value.id == 'self':
+                            attributes.add(target.attr)
+                            print(f"ویژگی {target.attr} در کلاس {class_name} شناسایی شد.")
+    return list(attributes)
+
+
+# فراخوانی توابع و اجرای فرایند کامل
+tree = parse_python_code()
+# شناسایی و نمایش کلاس‌ها و متدهای موجود در کد
+classes_and_their_methods = identify_classes_and_methods(tree)
+# شناسایی و نمایش ویژگی‌های موجود در هر کلاس
+classes = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+# شناسایی و نمایش متدهای موجود در هر کلاس
+classes = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+# شناسایی و نمایش ویژگی‌های هر کلاس
+for class_name in classes:
+    attributes_in_current_class = identify_class_attributes(tree, class_name)
+    print(f"\nویژگی‌های کلاس {class_name} عبارت‌اند از:")
+    for attribute in attributes_in_current_class:
+        print(f"- {attribute}")
+
+for class_name in classes:
+    methods_in_current_class = identify_class_methods(tree, class_name)
+    print(f"\nمتدهای موجود در کلاس {class_name} عبارت‌اند از:")
+    for method in methods_in_current_class:
+        print(f"- {method}")
+
+for class_name in classes:
+    attributes_in_current_class = identify_class_attributes(tree, class_name)
+    print(f"\nویژگی‌های موجود در کلاس {class_name} عبارت‌اند از:")
+    for attr in attributes_in_current_class:
+        print(f"- {attr}")
+
+print("\nکلاس‌ها و متدهای موجود در کد:")
+for cls, methods in classes_and_their_methods.items():
+    print(f"\nکلاس: {cls}")
+    print("متدها:")
+    for method in methods:
+        print(f"- {method}")
+print("__________")
+if tree:
+    functions = identify_functions_in_code(tree)
+    display_identified_functions(functions)
+
+    # شناسایی و نمایش پارامتر‌های ورودی هر تابع
+    for func_name in functions:
+        parameters_in_current_function = identify_function_parameters(tree, func_name)
+        print(f"\nپارامتر‌های ورودی تابع {func_name} عبارت‌اند از:")
+        for param in parameters_in_current_function:
+            print(f"- {param}")
+
+else:
+    print("فرایند تجزیه فایل با خطا مواجه شد.")
+
+# شناسایی و نمایش توابع فراخوانی شده در هر تابع
+for func_name in functions:
+    called_funcs_in_current_function = identify_called_functions_in_function(tree, func_name)
+    print(f"\nتوابع فراخوانی شده در تابع {func_name} عبارت‌اند از:")
+    for called_func in called_funcs_in_current_function:
+        print(f"- {called_func}")
+# شناسایی و نمایش متغیر‌های محلی در هر تابع
+for func_name in functions:
+    local_vars_in_current_function = identify_local_variables_in_function(tree, func_name)
+    print(f"\nمتغیر‌های محلی در تابع {func_name} عبارت‌اند از:")
+    for local_var in local_vars_in_current_function:
+        print(f"- {local_var}")
+# شناسایی و نمایش متغیر‌های گلوبال استفاده شده در هر تابع
+for func_name in functions:
+    global_vars_in_current_function = identify_global_variables_used_in_function(tree, func_name)
+    print(f"\nمتغیر‌های گلوبال استفاده شده در تابع {func_name} عبارت‌اند از:")
+    for global_var in global_vars_in_current_function:
+        print(f"- {global_var}")
+# شناسایی و نمایش متغیر‌های ورودی و خروجی استفاده شده در هر تابع
+for func_name in functions:
+    input_vars, output_vars = identify_function_io_variables(tree, func_name)
+
+    print(f"\nمتغیر‌های ورودی تابع {func_name} عبارت‌اند از:")
+    for var in input_vars:
+        print(f"- {var}")
+
+    print(f"\nمتغیر‌های خروجی تابع {func_name} عبارت‌اند از:")
+    for var in output_vars:
+        print(f"- {var}")
